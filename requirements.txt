@@ -1,0 +1,15 @@
+// Used to install the required packages for the project
+streamlit
+python-dotenv
+azure-cosmos
+azure-ai-language-conversations
+azure-ai-formrecognizer
+azure-ai-textanalytics
+azure-ai-anomalydetector
+azure-ai-formrecognizer 
+pdfplumber
+pymupdf
+pymongo
+azure-storage-blob
+
+
