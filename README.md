@@ -13,9 +13,9 @@ Esta aplicación permite a los usuarios buscar ordenadores a través de una inte
 - **Subir Pdf a la base de datos**: Document Intelligence escanea el pdf y extrae los valores clave con los que los has entrenado y te los guarda en la base de datos de MongoDB
 - 
 <p align="center">
-  <img src="![image](https://github.com/user-attachments/assets/6ca4752b-7f69-4df9-8b6e-0d9a947d8b63)
-" alt="Descripción de la imagen" width="500"/>
+  <img src="https://github.com/user-attachments/assets/6ca4752b-7f69-4df9-8b6e-0d9a947d8b63" alt="Descripción de la imagen" width="500"/>
 </p>
+
 
 
 ## Servicios Utilizados
