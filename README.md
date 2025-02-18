@@ -23,6 +23,9 @@ Esta aplicación permite a los usuarios buscar ordenadores a través de una inte
 4. **Azure Document Intelligence**: Servicio utilizado para extraer información de documentos PDF relacionados con los ordenadores.
 Cosmos DB.
 
+![image](https://github.com/user-attachments/assets/39604a2c-a25b-435b-a314-c2554a7a6dcb)
+
+
 ## Acceso
 https://meellaadoo04-chatbot-ordenadores-chatordenadores-zovk2l.streamlit.app/
 
