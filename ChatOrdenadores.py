@@ -162,43 +162,63 @@ def main():
         container = database.get_container_client("Especificaciones")
 
         st.set_page_config(
-        page_icon="💻",  # Puedes usar un emoji como icono
-        layout="wide",  # Opcional: cambia el diseño a ancho completo
+            page_icon="💻",
+            layout="wide",
         )
         st.markdown(
-        "<h1 style='text-align: center;'>🔍 IA Computer Assistant Shop</h1>",
-        unsafe_allow_html=True
+            "<h1 style='text-align: center; margin-bottom: 20px;'>💻 IA Computer Assistant Shop 🤖</h1>",
+            unsafe_allow_html=True
         )
         
-        # Barra lateral: Guía informativa y botón para subir PDF
-        marcas, pulgadas = obtener_marcas_y_pulgadas(container)
-        st.sidebar.title("Guía de Filtros Disponibles")
-        with st.sidebar.expander("📌 Marcas Disponibles"):
-            if marcas:
-                for m in marcas:
-                    st.write(m)
-            else:
-                st.write("No se encontraron marcas.")
-
-        with st.sidebar.expander("📏 Pulgadas Disponibles"):
-            if pulgadas:
-                for p in pulgadas:
-                    st.write(f"{p} pulgadas")
-            else:
-                st.write("No se encontraron pulgadas.")
-
-        st.sidebar.header("Subir PDF")
-        uploaded_file = st.sidebar.file_uploader("Selecciona un PDF para analizar", type=["pdf"])
+        # Barra lateral: Filtros y subida de PDF
+        st.sidebar.title("Opciones de Búsqueda")
+        
+        # Filtros avanzados
+        with st.sidebar.expander("🔍 Filtros Avanzados"):
+            marcas, pulgadas = obtener_marcas_y_pulgadas(container)
+            selected_brand = st.selectbox("Marca", [""] + marcas)
+            selected_size = st.selectbox("Pulgadas", [""] + pulgadas)
+        
+        # Sección para subir PDF
+        st.sidebar.header("📤 Subir Nuevo Producto")
+        uploaded_file = st.sidebar.file_uploader("Subir ficha técnica (PDF)", type="pdf")
         if uploaded_file is not None:
             subir_pdf(uploaded_file, container)
 
-        # Entrada principal para la búsqueda
-        user_input = st.text_input("¿Qué ordenador estás buscando?", "")
-        if user_input:
-            # Cliente para CLU (Conversation Language Understanding)
+       # Búsqueda principal por texto natural
+        st.header("Búsqueda Inteligente")
+
+        # Contenedor con dos columnas
+        col1, col2 = st.columns([4, 1])
+
+        with col1:
+            user_input = st.text_input("Describe el ordenador que buscas:", "")
+
+        with col2:
+            # MOdificar el botón usando CSS
+            st.markdown(
+                """
+                <style>
+                .stButton button {
+                    margin-top: 12px;
+                }
+                </style>
+                """,
+                unsafe_allow_html=True
+            )
+            buscar_natural = st.button("🔍 Buscar", help="Buscar ordenadores según la descripción proporcionada.",)
+
+
+        # Sección para mostrar resultados
+        st.header("Resultados de Búsqueda")
+        
+        # Procesar búsqueda natural
+        if buscar_natural and user_input:
+            # Cliente para CLU
             client = ConversationAnalysisClient(ls_prediction_endpoint, AzureKeyCredential(ls_prediction_key))
             cls_project = 'OrdenadoresConversational'
             deployment_slot = 'IntentOrdenadores'
+            
             with client:
                 result = client.analyze_conversation(
                     task={
@@ -223,28 +243,22 @@ def main():
 
             entities = result["result"]["prediction"]["entities"]
 
-            # Mostrar las entidades detectadas en la consola
-            print("Entidades detectadas:", entities)
-
+            # Procesar entidades de pulgadas
             def procesar_entidades_pulgadas(entities):
-                # Filtrar solo entidades de pulgadas y ordenar por posición en el texto
                 pulgadas_entities = sorted(
                     [e for e in entities if e['category'].lower() == 'pulgadas'],
                     key=lambda x: x['offset']
                 )
                 
-                # Consolidar entidades adyacentes
                 consolidated = []
                 i = 0
                 while i < len(pulgadas_entities):
                     current = pulgadas_entities[i]
                     merged_text = current['text']
                     
-                    # Buscar entidades siguientes adyacentes
                     j = i + 1
                     while j < len(pulgadas_entities):
                         next_entity = pulgadas_entities[j]
-                        # Verificar si son adyacentes (offset actual + length = offset siguiente)
                         if (current['offset'] + current['length']) == next_entity['offset']:
                             merged_text += next_entity['text']
                             current['length'] += next_entity['length']
@@ -252,41 +266,26 @@ def main():
                         else:
                             break
                             
-                    # Actualizar la entidad consolidada
                     current['text'] = merged_text.replace(',', '.')
                     consolidated.append(current)
                     i = j
                     
-                # Reemplazar las entidades originales de pulgadas
                 return [e for e in entities if e['category'].lower() != 'pulgadas'] + consolidated
 
-            # Dentro de la función main, modifica esta sección:
-            entities = result["result"]["prediction"]["entities"]
-
-            # Aplicar procesamiento especial para pulgadas
             entities = procesar_entidades_pulgadas(entities)
 
-            # Mostrar las entidades detectadas en la consola
-            print("Entidades detectadas (procesadas):", entities)
-
-            # Normalizar entidades obtenidas
+            # Construir criterios de búsqueda
             search_criteria = {"marca": None, "pulgadas": None}
             for entity in entities:
                 category = entity["category"].lower().strip()
                 text = entity["text"].strip()
-                # Se pueden dejar estos prints en la consola para depuración, pero no en la interfaz:
-                # print(f"Detectado -> Categoría: {category}, Texto: {text}")
+                
                 if category == "marca":
-                    if text.lower() == "samsung":  # Si es "samsung", convertir a mayúsculas
-                        search_criteria["marca"] = text.upper()
-                    else:
-                        search_criteria["marca"] = text  # Mantener el formato original
+                    search_criteria["marca"] = text.upper()
                 elif category == "pulgadas":
                     search_criteria["pulgadas"] = text.replace(',', '.')
-            # Tampoco mostramos los criterios en la interfaz
-            # print("Criterios de búsqueda:", search_criteria)
 
-            # Construcción de consulta dinámica basada en los criterios de CLU
+            # Construir consulta
             query_parts = []
             parameters = []
             if search_criteria["marca"]:
@@ -295,44 +294,93 @@ def main():
             if search_criteria["pulgadas"]:
                 query_parts.append("c.Pulgadas = @pulgadas")
                 parameters.append({"name": "@pulgadas", "value": search_criteria["pulgadas"]})
-            if query_parts:
-                query = "SELECT * FROM c WHERE " + " AND ".join(query_parts)
-                print(parameters)  
-                items = list(container.query_items(
-                    query=query,
-                    parameters=parameters,
-                    enable_cross_partition_query=True
-                ))
-            else:
-                items = list(container.query_items(
-                    query="SELECT * FROM c",
-                    enable_cross_partition_query=True
-                ))
-            if items:
-                st.success(f"🎉 Encontrados {len(items)} ordenadores:")
-                for item in items:
-                    marca = item.get("Marca", "").strip()
-                    modelo = item.get("Modelo", "").strip()
-                    display_title = modelo if modelo.upper().startswith(marca.upper()) else f"{marca} {modelo}"
-                    with st.expander(display_title):
-                        st.markdown(f"""
-                        **Especificaciones:**
-                        - 💻 Procesador: {item.get('Procesador', 'N/A')}
-                        - 🖥️ Pantalla: {item.get('Pulgadas', 'N/A')} pulgadas
-                        - 🧠 RAM: {item.get('RAM', 'N/A')} 
-                        - 💾 Almacenamiento: {item.get('Almacenamiento', 'N/A')}
-                        - 💰 Precio: {item.get('Precio', 'N/A')} €
-                        """)
-            else:
-                st.warning("⚠️ No se encontraron ordenadores con esos criterios")
 
-    except exceptions.CosmosHttpResponseError as ex:
-        st.error(f"🚨 Error en la base de datos: {ex.message}")
-    except Exception as ex:
-        st.error(f"❌ Error inesperado: {str(ex)}")
+            items = ejecutar_consulta(container, query_parts, parameters)
+
+        # Procesar búsqueda por filtros
+        elif st.sidebar.button("Aplicar Filtros"):
+            search_criteria = {
+                "marca": selected_brand,
+                "pulgadas": selected_size
+            }
+            
+            query_parts = []
+            parameters = []
+            if search_criteria["marca"]:
+                query_parts.append("c.Marca = @marca")
+                parameters.append({"name": "@marca", "value": search_criteria["marca"]})
+            if search_criteria["pulgadas"]:
+                query_parts.append("c.Pulgadas = @pulgadas")
+                parameters.append({"name": "@pulgadas", "value": search_criteria["pulgadas"]})
+
+            items = ejecutar_consulta(container, query_parts, parameters)
+
+        # Mostrar resultados
+        if 'items' in locals():
+            mostrar_resultados(items)
+
+    except Exception as e:
+        st.error(f"❌ Error en la aplicación: {str(e)}")
+
+def ejecutar_consulta(container, query_parts, parameters):
+    """Ejecuta la consulta en Cosmos DB"""
+    try:
+        if query_parts:
+            query = "SELECT * FROM c WHERE " + " AND ".join(query_parts)
+            return list(container.query_items(
+                query=query,
+                parameters=parameters,
+                enable_cross_partition_query=True
+            ))
+        else:
+            return list(container.query_items(
+                query="SELECT * FROM c",
+                enable_cross_partition_query=True
+            ))
+    except exceptions.CosmosHttpResponseError as e:
+        st.error(f"🚨 Error en la base de datos: {e.message}")
+        return []
+
+def mostrar_resultados(items):
+    """Muestra los resultados en formato tarjeta"""
+    if items:
+        st.success(f"🎉 Encontrados {len(items)} ordenadores:")
+        cols = st.columns(3)
+        for idx, item in enumerate(items):
+            with cols[idx % 3]:
+                marca = item.get("Marca", "").strip()
+                modelo = item.get("Modelo", "").strip()
+                procesador = item.get("Procesador", "N/A")
+                pulgadas = item.get("Pulgadas", "N/A")
+                ram = item.get("RAM", "N/A")
+                almacenamiento = item.get("Almacenamiento", "N/A")
+                precio = item.get("Precio", "N/A")
+
+                ## Mostrar especificaciones
+                st.markdown(f"""
+                <div style='
+                    border: 1px solid #4B5B80; 
+                    border-radius: 10px;
+                    padding: 15px;
+                    margin-bottom: 15px;
+                    height: 350px;
+                    background-color: #2E3B4E; 
+                '>
+                    <h4 style='color: #FFD700;'>{marca}</h4>  
+                    <p style='color: #B0E0E6;'>{modelo}</p>  
+                    <p style='color: #FFFFFF;'>💻 Procesador: {procesador}</p>
+                    <p style='color: #FFFFFF;'>🖥️ Pantalla: {pulgadas} pulgadas</p>
+                    <p style='color: #FFFFFF;'>🧠 RAM: {ram} </p>
+                    <p style='color: #FFFFFF;'>💾 Almacenamiento: {almacenamiento} </p>
+                    <p style='color: #FFFFFF;'>💰 Precio: €{precio}</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+    else:
+        st.warning("⚠️ No se encontraron ordenadores con esos criterios")
+
 
 if __name__ == "__main__":
-    
     main()
 
 
