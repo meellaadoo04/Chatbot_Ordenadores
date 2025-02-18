@@ -173,11 +173,19 @@ def main():
         # Barra lateral: Filtros y subida de PDF
         st.sidebar.title("Opciones de Búsqueda")
         
+        # Inicializar session_state si no existen
+        if "marca_select" not in st.session_state:
+            st.session_state.marca_select = ""
+        if "pulgadas_select" not in st.session_state:
+            st.session_state.pulgadas_select = ""
+
         # Filtros avanzados
         with st.sidebar.expander("🔍 Filtros Avanzados"):
             marcas, pulgadas = obtener_marcas_y_pulgadas(container)
-            selected_brand = st.selectbox("Marca", [""] + marcas)
-            selected_size = st.selectbox("Pulgadas", [""] + pulgadas)
+            
+            selected_brand = st.selectbox("Marca", [""] + marcas, key="marca_select")
+            selected_size = st.selectbox("Pulgadas", [""] + pulgadas, key="pulgadas_select")
+
         
         # Sección para subir PDF
         st.sidebar.header("📤 Subir Nuevo Producto")
@@ -298,7 +306,7 @@ def main():
             items = ejecutar_consulta(container, query_parts, parameters)
 
         # Procesar búsqueda por filtros
-        elif st.sidebar.button("Aplicar Filtros"):
+        if st.sidebar.button("✅ Aplicar Filtros", key="aplicar_filtros"):
             search_criteria = {
                 "marca": selected_brand,
                 "pulgadas": selected_size
@@ -314,6 +322,13 @@ def main():
                 parameters.append({"name": "@pulgadas", "value": search_criteria["pulgadas"]})
 
             items = ejecutar_consulta(container, query_parts, parameters)
+            
+
+        # Botón de Resetear debajo
+        if st.sidebar.button("🔄 Resetear Filtros", key="resetear_filtros"):
+            st.session_state.clear()  # Limpia todos los valores de session_state
+            st.rerun()  # Recargar la interfaz para aplicar los cambios
+
 
         # Mostrar resultados
         if 'items' in locals():
