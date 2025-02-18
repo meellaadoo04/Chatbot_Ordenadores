@@ -12,6 +12,8 @@ Esta aplicación permite a los usuarios buscar ordenadores a través de una inte
 - **Resultados de Búsqueda**: Muestra los resultados de la búsqueda en función de los criterios seleccionados.
 - **Subir Pdf a la base de datos**: Document Intelligence escanea el pdf y extrae los valores clave con los que los has entrenado y te los guarda en la base de datos de MongoDB
 
+![image](https://github.com/user-attachments/assets/effcdb1d-df7c-4a5c-97e9-bc6b6719dfb8)
+
 ## Servicios Utilizados
 
 1. **Streamlit**: Framework utilizado para crear la interfaz de usuario de la aplicación y poder interacturar con el chatBot.
